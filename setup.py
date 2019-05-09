@@ -2,7 +2,7 @@ from setuptools import setup
 # This is the setup thing (written by Wil)
 setup(
     name='HetMOGP',
-    packages=['hetmogp', 'likelihoods'],
+    packages=['hetmogp'],
     version='0.1',
     author='Pablo Moreno-Muñoz',
     url='http://github.com/pmorenoz/HetMOGP/',
