@@ -32,7 +32,7 @@ likelihood_list = [HetGaussian(), Bernoulli(), Categorical(K=3)]
 ```
 * Model and definition:
 ```
-model = SVMOGP(X=X, Y=Y, Z=Z, kern_list=kern_list, likelihood=likelihood, Y_metadata=Y_metadata)
+model = HetMOGP(X=X, Y=Y, Z=Z, kern_list=kern_list, likelihood=likelihood, Y_metadata=Y_metadata)
 ```
 
 A complete example of our model usage can be found in this repository at **notebooks > demo**
@@ -61,7 +61,7 @@ We have collected many ideas about possible applications of our heterogeneous mu
 
 ## Contributors
 
-[Pablo Moreno-Muñoz](http://www.tsc.uc3m.es/~pmoreno/), [Antonio Artés-Rodríguez](http://www.tsc.uc3m.es/~antonio/) and [Mauricio A. Álvarez](https://sites.google.com/site/maalvarezl/)
+[Pablo Moreno-Muñoz](http://www.tsc.uc3m.es/~pmoreno/), [Antonio Artés-Rodríguez](http://www.tsc.uc3m.es/~antonio/) and [Mauricio A. Álvarez](https://maalvarezl.github.io/)
 
 For further information or contact:
 ```
