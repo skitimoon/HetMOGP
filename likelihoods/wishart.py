@@ -1,58 +1,46 @@
-# Copyright (c) 2018 Pablo Moreno-Munoz
-# Universidad Carlos III de Madrid and University of Sheffield
-
 import numpy as np
 from GPy.likelihoods import link_functions
 from GPy.likelihoods import Likelihood
-from scipy.stats import norm
-from scipy.misc import logsumexp
+from scipy.stats import wishart
+# from scipy.misc import logsumexp
 
 
-class Gaussian(Likelihood):
+class Wishart(Likelihood):
     """
-    Gaussian likelihood with a latent function over its mean parameter
-
+    Wishart likelihood with a latent function over its mean parameter
     """
 
-    def __init__(self, sigma=None, gp_link=None):
-        if gp_link is None:
-            gp_link = link_functions.Identity()
+    def __init__(self, df=3, gp_link=link_functions.Identity()):
 
-        if sigma is None:
-            self.sigma = 0.5
-        else:
-            self.sigma = sigma
+        super(Wishart, self).__init__(gp_link, name='Wishart')
 
-        super(Gaussian, self).__init__(gp_link, name='Gaussian')
-
-    def pdf(self, f, y, Y_metadata=None):
-        pdf = norm.pdf(y, loc=f)
+    def pdf(self, W, Y, Y_metadata=None):
+        pdf = wishart.pdf(Y, df=self.df, scale=W/self.df)
         return pdf
 
-    def logpdf(self, f, y, Y_metadata=None):
-        logpdf = norm.logpdf(y, loc=f)
+    def logpdf(self, W, Y, Y_metadata=None):
+        logpdf = wishart.logpdf(Y, df=self.df, scale=W/self.df)
         return logpdf
 
-    def samples(self, f , num_samples, Y_metadata=None):
-        samples = np.random.normal(loc=f, scale=self.sigma)
-        #samples = np.random.normal(loc=f, size=(num_samples, f.shape[1]))
+    def samples(self, W, num_samples, Y_metadata=None):
+        # samples = np.random.normal(loc=f, scale=self.df)
+        samples = wishart.rvs(self.df, W/self.df, num_samples)
         return samples
 
-    def var_exp(self, Y, m, v, gh_points=None, Y_metadata=None):
-        # Variational Expectation (Analytical)
-        # E_q(fid)[log(p(yi|fid))]
-        lik_v = np.square(self.sigma)
-        m, v, Y = m.flatten(), v.flatten(), Y.flatten()
-        m = m[:,None]
-        v = v[:,None]
-        Y = Y[:,None]
-        var_exp = -0.5 * np.log(2 * np.pi) - 0.5 * np.log(lik_v) \
-                  - 0.5 * (np.square(Y) + np.square(m) + v - (2 * m * Y)) / lik_v
+    def var_exp(self, Y, M, V, gh_points=None, Y_metadata=None):
+        # Variational expectation using Gauss–Hermite quadrature
+        if gh_points is None:
+            gh_f, gh_w = self._gh_points()
+        else:
+            gh_f, gh_w = gh_points
+
+        var_exp = 1
+
         return var_exp
 
     def var_exp_derivatives(self, Y, m, v, gh_points=None, Y_metadata=None):
         # Variational Expectations of derivatives
-        lik_v = np.square(self.sigma)
+        lik_v = np.square(self.df)
         m, v, Y = m.flatten(), v.flatten(), Y.flatten()
         m = m[:,None]
         v = v[:,None]
@@ -63,7 +51,7 @@ class Gaussian(Likelihood):
 
     def predictive(self, m, v, Y_metadata):
         mean_pred = m
-        var_pred = np.square(self.sigma) + v
+        var_pred = np.square(self.df) + v
         return mean_pred, var_pred
 
     def log_predictive(self, Ytest, mu_F_star, v_F_star, num_samples):
@@ -89,4 +77,4 @@ class Gaussian(Likelihood):
 
     def ismulti(self):
         # Returns if the distribution is multivariate
-        return False
+        return True
