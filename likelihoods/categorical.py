@@ -280,9 +280,9 @@ class Categorical(Likelihood):
         # monte-carlo:
         log_pred = -np.log(num_samples) + logsumexp(self.logpdf_sampling(F_samples, Ytest), axis=-1)
         log_pred = np.array(log_pred).reshape(*Ytest.shape)
-        log_predictive = (1/num_samples)*log_pred.sum()
+        #log_predictive = (1/num_samples)*log_pred.sum()
 
-        return log_predictive
+        return log_pred
 
     def get_metadata(self):
         dim_y = 1

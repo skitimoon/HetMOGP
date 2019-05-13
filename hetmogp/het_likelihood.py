@@ -147,18 +147,19 @@ class HetLikelihood(Likelihood):
             v_pred.append(v_pred_task)
         return m_pred, v_pred
 
-    def negative_log_predictive(self, Ytest, mu_F_star, v_F_star, Y_metadata, num_samples):
+    def log_predictive(self, Ytest, mu_F_star, v_F_star, Y_metadata, num_samples):
         """
-        Returns the negative log-predictive density (NLPD) of the model over test data Ytest.
+        Returns the log-predictive density (LPD) of the model over each test data Ytest.
+        the variable logpred is a list of length equal to the number of outputs of the model
+        and each list position contains the evaluation of LPD of each Ntest data per output
         """
         t_ind = Y_metadata['task_index'].flatten()
         y_ind = Y_metadata['y_index'].flatten()
         f_ind = Y_metadata['function_index'].flatten()
         p_ind = Y_metadata['pred_index'].flatten()
         tasks = np.unique(t_ind)
-        logpred = 0
+        logpred = []   #this to allow the return of the nlogpred of each task
         for t in tasks:
-            logpred += self.likelihoods_list[t].log_predictive(Ytest[t], mu_F_star[t], v_F_star[t], num_samples)
+            logpred.append(self.likelihoods_list[t].log_predictive(Ytest[t], mu_F_star[t], v_F_star[t], num_samples)) # it is negative due to "Negative" LPD
 
-        nlogpred = -logpred
-        return nlogpred
+        return logpred
