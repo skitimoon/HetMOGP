@@ -106,7 +106,6 @@ class SVMOGPInf(LatentFunctionInference):
                 dL_dKdiag.append(dL_dKdiag_q)
                 posteriors.append(posterior_q)
 
-            #Here we add the return of each dL_dS_u so as to allow natural gradients in Juan Jose's Code
             gradients = {'dL_dmu_u':dL_dmu_u, 'dL_dL_u':dL_dL_u,'dL_dS_u':dL_dS_u, 'dL_dKmm':dL_dKmm, 'dL_dKmn':dL_dKmn, 'dL_dKdiag': dL_dKdiag}
 
             return log_marginal, gradients, posteriors, posteriors_F

@@ -10,6 +10,7 @@ import numpy as np
 import climin
 from functools import partial
 import matplotlib.pyplot as plt
+import VariationalOptimization as vo
 
 
 def  get_batch_scales(X_all, X):
@@ -84,7 +85,7 @@ def latent_functions_prior(Q, lenghtscale=None, variance=None, input_dim=None):
         variance = variance
     kern_list = []
     for q in range(Q):
-        kern_q = kern.RBF(input_dim=input_dim, lengthscale=lenghtscale[q], variance=variance[q], name='rbf')# \
+        kern_q = kern.RBF(input_dim=input_dim, lengthscale=lenghtscale[q], variance=variance[q], name='rbf')+ kern.White(input_dim)# \
         kern_q.name = 'kern_q'+str(q)
         kern_list.append(kern_q)
     return kern_list
@@ -195,7 +196,7 @@ def latent_funs_cov(Z, kernel_list):
     Kuui = np.empty((Q, M, M))
     for q, kern in enumerate(kernel_list):
         Kuu[q, :, :] = kern.K(Z[:,q*Xdim:q*Xdim+Xdim],Z[:,q*Xdim:q*Xdim+Xdim])
-        Luu[q, :, :] = linalg.jitchol(Kuu[q, :, :])
+        Luu[q, :, :] = linalg.jitchol(Kuu[q, :, :],maxtries=10)
         Kuui[q, :, :], _ = linalg.dpotri(np.asfortranarray(Luu[q, :, :]))
     return Kuu, Luu, Kuui
 
@@ -281,6 +282,7 @@ def gradients_coreg_diag(coreg, dL_dKdiag, kern_q, X, X2=None):
     dkappa = matrix_sum
     return dW, dkappa
 
+
 def vem_algorithm(model, vem_iters=None, maxIter_perVEM = None, step_rate=None ,verbose=False, optZ=True, verbose_plot=False, non_chained=True):
     if vem_iters is None:
         vem_iters = 5
@@ -322,7 +324,9 @@ def vem_algorithm(model, vem_iters=None, maxIter_perVEM = None, step_rate=None ,
         if step_rate is None:
             step_rate = 0.01
 
-        model.elbo = np.empty((maxIter_perVEM*vem_iters+2, 1))
+        # Here the E step has maxIter_perVEM (100 by default) and
+        # the M step has also maxIter_perVEM (100 by default)
+        model.elbo = np.empty((2*maxIter_perVEM*vem_iters+2, 1))
         model.elbo[0,0]=model.log_likelihood()
         c_full = partial(model.callback, max_iter=maxIter_perVEM, verbose=verbose, verbose_plot=verbose_plot)
 
@@ -335,9 +339,14 @@ def vem_algorithm(model, vem_iters=None, maxIter_perVEM = None, step_rate=None ,
 
             model.q_u_means.unfix()
             model.q_u_chols.unfix()
-            optimizer = climin.Adam(model.optimizer_array, model.stochastic_grad, step_rate=step_rate,decay_mom1=1 - 0.9, decay_mom2=1 - 0.999)
-            optimizer.minimize_until(c_full)
-            print('iteration (' + str(i + 1) + ') VE step, mini-batch log_likelihood=' + str(model.log_likelihood().flatten()))
+            # optimizer = climin.Adam(model.optimizer_array, model.stochastic_grad, step_rate=step_rate,
+            #                        decay_mom1=1 - 0.9, decay_mom2=1 - 0.999)
+            # model.index_VEM = 2*(i) * maxIter_perVEM
+            # optimizer.minimize_until(c_full)
+            vo.variational_opt_HetMOGP(model=model, max_iters=maxIter_perVEM, step_size=step_rate, momentum=0.0,prior_lambda=1.0e-1,MC=1)
+
+            print('iteration (' + str(i + 1) + ') VE step, mini-batch log_likelihood=' + str(
+                model.log_likelihood().flatten()))
             #
             # # VARIATIONAL M-STEP
             model['.*.lengthscale'].unfix()
@@ -349,8 +358,11 @@ def vem_algorithm(model, vem_iters=None, maxIter_perVEM = None, step_rate=None ,
 
             model.q_u_means.fix()
             model.q_u_chols.fix()
-            optimizer = climin.Adam(model.optimizer_array, model.stochastic_grad, step_rate=step_rate,decay_mom1=1 - 0.9, decay_mom2=1 - 0.999)
-            optimizer.minimize_until(c_full)
-            print('iteration (' + str(i + 1) + ') VM step, mini-batch log_likelihood=' + str(model.log_likelihood().flatten()))
+            # optimizer = climin.Adam(model.optimizer_array, model.stochastic_grad, step_rate=step_rate,decay_mom1=1 - 0.9, decay_mom2=1 - 0.999)
+            # model.index_VEM = 2*(i) * maxIter_perVEM +maxIter_perVEM
+            # optimizer.minimize_until(c_full)
+            vo.variational_opt_HetMOGP(model=model, max_iters=maxIter_perVEM, step_size=step_rate, momentum=0.0,prior_lambda=1.0e-1,MC=1)
+            print('iteration (' + str(i + 1) + ') VM step, mini-batch log_likelihood=' + str(
+                model.log_likelihood().flatten()))
 
     return model
