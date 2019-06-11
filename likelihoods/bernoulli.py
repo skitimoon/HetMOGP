@@ -105,27 +105,38 @@ class Bernoulli(Likelihood):
         m, v, Y = m.flatten(), v.flatten(), Y.flatten()
         f = gh_f[None, :] * np.sqrt(2. * v[:, None]) + m[:, None]
         dlogp_df = self.dlogp_df(f, np.tile(Y[:, None], (1, f.shape[1])))
-        d2logp_df2 = self.d2logp_df2(f, np.tile(Y[:, None], (1, f.shape[1])))
         var_exp_dm = dlogp_df.dot(gh_w[:,None])
-        var_exp_dv = 0.5*d2logp_df2.dot(gh_w[:, None])
+        GN = False #If True means we approximate the grads with Gauss-Newton so checkgrad(verbose) can change a bit
+        if GN is False:
+            d2logp_df2 = self.d2logp_df2(f, np.tile(Y[:, None], (1, f.shape[1])))
+            var_exp_dv = 0.5*d2logp_df2.dot(gh_w[:, None])
+        else:
+            var_exp_dv = -0.5 * dlogp_df.__pow__(2).dot(gh_w[:, None])
         return var_exp_dm, var_exp_dv
 
-    def predictive(self, m, v, gh_points=None, Y_metadata=None):
-        # Variational Expectation
-        # gh: Gaussian-Hermite quadrature
-        if gh_points is None:
-            gh_f, gh_w = self._gh_points()
-        else:
-            gh_f, gh_w = gh_points
+    # def predictive(self, m, v, gh_points=None, Y_metadata=None):
+    #     # Variational Expectation
+    #     # gh: Gaussian-Hermite quadrature
+    #     if gh_points is None:
+    #         gh_f, gh_w = self._gh_points()
+    #     else:
+    #         gh_f, gh_w = gh_points
+    #
+    #     gh_w = gh_w / np.sqrt(np.pi)
+    #     m, v= m.flatten(), v.flatten()
+    #     f = gh_f[None, :] * np.sqrt(2. * v[:, None]) + m[:, None]
+    #     mean = self.mean(f)
+    #     var = self.variance(f).dot(gh_w[:,None]) + self.mean_sq(f).dot(gh_w[:,None]) - np.square(mean.dot(gh_w[:,None]))
+    #     mean_pred = mean.dot(gh_w[:,None])
+    #     var_pred = var
+    #     return mean_pred, var_pred
 
-        gh_w = gh_w / np.sqrt(np.pi)
-        m, v= m.flatten(), v.flatten()
-        f = gh_f[None, :] * np.sqrt(2. * v[:, None]) + m[:, None]
-        mean = self.mean(f)
-        var = self.variance(f).dot(gh_w[:,None]) + self.mean_sq(f).dot(gh_w[:,None]) - np.square(mean.dot(gh_w[:,None]))
-        mean_pred = mean.dot(gh_w[:,None])
-        var_pred = var
-        return mean_pred, var_pred
+    def predictive(self, m, v,Y_metadata=None):
+        # This can be checked in eq 4.152 Pattern recognition Bishop
+        # with lambda = 1
+        mean_pred = std_norm_cdf(m / np.sqrt(1 + v))  #Here the mean prediction is already influenced by the variance v
+        var_pred = np.ones_like(mean_pred)*np.nan     #Since the prediction is already a probability informing the uncertainty
+        return mean_pred, var_pred                    #of the prediciton, so with don't need any confidence variance
 
     def log_predictive(self, Ytest, mu_F_star, v_F_star, num_samples):
         Ntest, D = mu_F_star.shape
@@ -139,9 +150,10 @@ class Bernoulli(Likelihood):
         # monte-carlo:
         log_pred = -np.log(num_samples) + logsumexp(self.logpdf(F_samples[:,:,0], Ytest), axis=-1)
         log_pred = np.array(log_pred).reshape(*Ytest.shape)
-        log_predictive = (1/num_samples)*log_pred.sum()
+        "I just changed this to have the log_predictive of each data point and not a mean values"
+        #log_predictive = (1/num_samples)*log_pred.sum()
 
-        return log_predictive
+        return log_pred
 
     def get_metadata(self):
         dim_y = 1

@@ -58,7 +58,11 @@ class Gaussian(Likelihood):
         v = v[:,None]
         Y = Y[:,None]
         var_exp_dm = - (m - Y) / lik_v
-        var_exp_dv = - 0.5 * (1 / np.tile(lik_v, (m.shape[0],1)))
+        GN = False
+        if GN is False:
+            var_exp_dv = - 0.5 * (1 / np.tile(lik_v, (m.shape[0],1)))
+        else:
+            var_exp_dv = - 0.5*(Y**2 - 2*Y*m + v + m**2)/ np.square(lik_v)
         return var_exp_dm, var_exp_dv
 
     def predictive(self, m, v, Y_metadata):
@@ -78,8 +82,9 @@ class Gaussian(Likelihood):
         # monte-carlo:
         log_pred = -np.log(num_samples) + logsumexp(self.logpdf(F_samples[:,:,0], Ytest), axis=-1)
         log_pred = np.array(log_pred).reshape(*Ytest.shape)
-        log_predictive = (1/num_samples)*log_pred.sum()
-        return log_predictive
+        "I just changed this to have the log_predictive of each data point and not a mean values"
+        #log_predictive = (1/num_samples)*log_pred.sum()
+        return log_pred
 
     def get_metadata(self):
         dim_y = 1
