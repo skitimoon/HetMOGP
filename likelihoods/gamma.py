@@ -8,7 +8,7 @@ from GPy.likelihoods import Likelihood
 from GPy.util.misc import safe_exp, safe_square
 from scipy.special import beta, betaln, psi, zeta, gamma, gammaln
 from functools import reduce
-
+from scipy.misc import logsumexp
 
 class Gamma(Likelihood):
     """
@@ -38,6 +38,16 @@ class Gamma(Likelihood):
         a = np.clip(a, 1e-9, 1e9)  # numerical stability
         b = np.clip(b, 1e-9, 1e9)  # numerical stability
         logpdf = - gammaln(a) + (a*np.log(b)) + ((a-1)*np.log(y)) - (b*y)
+        return logpdf
+
+    def logpdf_sampling(self, F, y, Y_metadata=None):
+        eF = safe_exp(F)
+        a = eF[:,0,:]
+        b = eF[:,1,:]
+        a = np.clip(a, 1e-9, 1e9)  # numerical stability
+        b = np.clip(b, 1e-9, 1e9)  # numerical stability
+        ym = np.tile(y, (1, F.shape[2]))
+        logpdf = - gammaln(a) + (a*np.log(b)) + ((a-1)*np.log(ym)) - (b*ym)
         return logpdf
 
     def samples(self, F ,num_samples, Y_metadata=None):
@@ -237,6 +247,22 @@ class Gamma(Likelihood):
         var_pred = var_int + mean_sq_int - safe_square(mean_pred)
         return mean_pred[:,None] , var_pred[:,None]
 
+    def log_predictive(self, Ytest, mu_F_star, v_F_star, num_samples):
+        Ntest, D = mu_F_star.shape
+        F_samples = np.empty((Ntest, D, num_samples))
+        # function samples:
+        for d in range(D):
+            mu_fd_star = mu_F_star[:, d][:, None]
+            var_fd_star = v_F_star[:, d][:, None]
+            F_samples[:, d, :] = np.random.normal(mu_fd_star, np.sqrt(var_fd_star), size=(Ntest, num_samples))
+
+        # monte-carlo:
+        log_pred = -np.log(num_samples) + logsumexp(self.logpdf_sampling(F_samples, Ytest), axis=-1)
+        log_pred = np.array(log_pred).reshape(*Ytest.shape)
+        "I just changed this to have the log_predictive of each data point and not a mean values"
+        #log_predictive = (1/num_samples)*log_pred.sum()
+
+        return log_pred
 
     def get_metadata(self):
         dim_y = 1
