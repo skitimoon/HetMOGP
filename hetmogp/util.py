@@ -10,7 +10,7 @@ import numpy as np
 import climin
 from functools import partial
 import matplotlib.pyplot as plt
-import VariationalOptimization as vo
+# import VariationalOptimization as vo
 
 
 def  get_batch_scales(X_all, X):

@@ -11,15 +11,15 @@ from likelihoods.gaussian import Gaussian
 from likelihoods.categorical import Categorical
 from hetmogp.het_likelihood import HetLikelihood
 from hetmogp.svmogp import SVMOGP
-from hetmogp.util import vem_algorithm as VEM
+# from hetmogp.util import vem_algorithm as VEM
 from hetmogp.util import latent_functions_prior
 
 import matplotlib.pyplot as plt
 
-M = 40
+M = 20
 Q = 3
 
-likelihoods_list = [Gaussian(sigma=1), Categorical(2)]
+likelihoods_list = [Gaussian(sigma=1), Categorical(4)]
 likelihood = HetLikelihood(likelihoods_list)
 Y_metadata = likelihood.generate_metadata()
 T = len(Y_metadata['task_index'])
@@ -92,13 +92,18 @@ plt.show()
 
 # Initialisation
 ls_q = np.array([0.05] * Q)
-var_q = np.array([0.5] * Q)
+var_q = np.array([1] * Q)
 kern_list = latent_functions_prior(Q,
                                    lenghtscale=ls_q,
                                    variance=var_q,
                                    input_dim=1)
 
-Z = X[0][npr.choice(len(X[0]), M, replace=False)]
+# Z = X[0][npr.choice(len(X[0]), M, replace=False)]
+Z = np.array([[0.7622678], [0.51665116], [0.0554468], [1.05267503],
+              [0.66678543], [1.0816756], [0.24867181], [0.36866903],
+              [0.08345063], [0.8481857], [0.88520441], [0.44114271],
+              [0.66066786], [0.98510978], [0.56583133], [0.54870427],
+              [0.41945253], [0.40121524], [0.73795297], [0.22373318]])
 
 # Model and Inference
 model = SVMOGP(X=Xtrain,
@@ -111,7 +116,7 @@ model = SVMOGP(X=Xtrain,
 
 # model = VEM(model, vem_iters=7, maxIter_perVEM=100)
 
-max_iter = 2200
+max_iter = 1200
 loglikelihood = np.zeros(max_iter)
 
 
@@ -128,20 +133,16 @@ def callback(info):
 #     model.optimizer_array = x
 #     return model.objective_function()
 
-
 # def f_grad(x):
 #     model.optimizer_array = x
 #     return model.objective_function_gradients()
 
-
-# opt = climin.Adam(model.optimizer_array,
-#                   model.stochastic_grad,
-#                   step_rate=2)
+# opt = climin.Adam(model.optimizer_array, model.stochastic_grad, step_rate=1)
 
 opt = climin.Adadelta(model.optimizer_array,
                       model.stochastic_grad,
-                      step_rate=0.1,
-                      decay=0.8)
+                      step_rate=0.01,
+                      decay=0.9)
 
 opt.minimize_until(callback)
 
@@ -154,7 +155,6 @@ opt.minimize_until(callback)
 #                jac=f_grad,
 #                options={'disp': True})
 
-
 # print(res)
 # print(res.x)
 
@@ -164,7 +164,7 @@ plt.show()
 
 Fpred = model.posteriors_F(X[0])
 Ypred, Vpred = model.predict(X[0])
-pprint(model.Z)
+# print(model.Z)
 
 # plt.scatter(X[0], Y[0], label='Y_0')
 # plt.scatter(X[1], Y[1], label='Y_1')
@@ -178,5 +178,17 @@ plt.show()
 
 plt.plot(X[0], Fpred[0].mean, label='1')
 plt.plot(X[0], Fpred[1].mean, label='2')
+plt.plot(X[0], Fpred[2].mean, label='3')
+plt.plot(X[0], Fpred[3].mean, label='4')
 plt.legend()
+plt.show()
+
+rho = np.zeros((len(X[0]), D))
+for t in range(D):
+    rho[:, t] = likelihoods_list[1].rho_k(Ypred[1], t)
+for t in range(T):
+    plt.scatter(Xtrain[t], Ytrain[t], label=f'Y_{t}')
+plt.scatter(X2test, Y2test, label=f'Ytest')
+plt.plot(X[0], rho)
+plt.plot(X[0].flat, np.argmax(rho, 1) + 1)
 plt.show()

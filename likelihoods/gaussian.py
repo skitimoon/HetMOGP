@@ -33,9 +33,9 @@ class Gaussian(Likelihood):
         logpdf = norm.logpdf(y, loc=f)
         return logpdf
 
-    def samples(self, f , num_samples, Y_metadata=None):
+    def samples(self, f, num_samples, Y_metadata=None):
         samples = np.random.normal(loc=f, scale=self.sigma)
-        #samples = np.random.normal(loc=f, size=(num_samples, f.shape[1]))
+        # samples = np.random.normal(loc=f, size=(num_samples, f.shape[1]))
         return samples
 
     def var_exp(self, Y, m, v, gh_points=None, Y_metadata=None):
@@ -43,26 +43,27 @@ class Gaussian(Likelihood):
         # E_q(fid)[log(p(yi|fid))]
         lik_v = np.square(self.sigma)
         m, v, Y = m.flatten(), v.flatten(), Y.flatten()
-        m = m[:,None]
-        v = v[:,None]
-        Y = Y[:,None]
-        var_exp = -0.5 * np.log(2 * np.pi) - 0.5 * np.log(lik_v) \
-                  - 0.5 * (np.square(Y) + np.square(m) + v - (2 * m * Y)) / lik_v
+        m = m[:, None]
+        v = v[:, None]
+        Y = Y[:, None]
+        var_exp = -0.5 * np.log(2 * np.pi) - 0.5 * np.log(lik_v) - 0.5 * (
+            np.square(Y) + np.square(m) + v - (2 * m * Y)) / lik_v
         return var_exp
 
     def var_exp_derivatives(self, Y, m, v, gh_points=None, Y_metadata=None):
         # Variational Expectations of derivatives
         lik_v = np.square(self.sigma)
         m, v, Y = m.flatten(), v.flatten(), Y.flatten()
-        m = m[:,None]
-        v = v[:,None]
-        Y = Y[:,None]
-        var_exp_dm = - (m - Y) / lik_v
+        m = m[:, None]
+        v = v[:, None]
+        Y = Y[:, None]
+        var_exp_dm = -(m - Y) / lik_v
         GN = False
         if GN is False:
-            var_exp_dv = - 0.5 * (1 / np.tile(lik_v, (m.shape[0],1)))
+            var_exp_dv = -0.5 * (1 / np.tile(lik_v, (m.shape[0], 1)))
         else:
-            var_exp_dv = - 0.5*(Y**2 - 2*Y*m + v + m**2)/ np.square(lik_v)
+            var_exp_dv = -0.5 * (Y**2 - 2 * Y * m + v +
+                                 m**2) / np.square(lik_v)
         return var_exp_dm, var_exp_dv
 
     def predictive(self, m, v, Y_metadata):
@@ -77,13 +78,17 @@ class Gaussian(Likelihood):
         for d in range(D):
             mu_fd_star = mu_F_star[:, d][:, None]
             var_fd_star = v_F_star[:, d][:, None]
-            F_samples[:, :, d] = np.random.normal(mu_fd_star, np.sqrt(var_fd_star), size=(Ntest, num_samples))
+            F_samples[:, :, d] = np.random.normal(mu_fd_star,
+                                                  np.sqrt(var_fd_star),
+                                                  size=(Ntest, num_samples))
 
         # monte-carlo:
-        log_pred = -np.log(num_samples) + logsumexp(self.logpdf(F_samples[:,:,0], Ytest), axis=-1)
+        log_pred = -np.log(num_samples) + logsumexp(
+            self.logpdf(F_samples[:, :, 0], Ytest), axis=-1)
         log_pred = np.array(log_pred).reshape(*Ytest.shape)
-        "I just changed this to have the log_predictive of each data point and not a mean values"
-        #log_predictive = (1/num_samples)*log_pred.sum()
+        # I just changed this to have the log_predictive of each data point and
+        # not a mean values
+        # log_predictive = (1/num_samples)*log_pred.sum()
         return log_pred
 
     def get_metadata(self):
